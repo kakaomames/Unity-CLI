@@ -48,12 +48,7 @@ jobs:
 
         - name: Run Build via Unity CLI
         run: |
-          # Unity CLIの機能を使って、インストールされたエディタ経由でバッチモードを実行する
-          # もしくは、Unity CLIが提供するコマンドや通常の起動引数を利用するであります
           unity editors --format json
-          
-          # CLI経由で現在のエディタバージョンを使ってバッチモードでビルドメソッドを叩く
-          # Unity CLI自体のコマンド、またはunityエディタの標準コマンドを使用
           unity open . --no-window -executeMethod WebGLBuildCommand.Build
 
           
