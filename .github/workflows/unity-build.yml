@@ -13,7 +13,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1. Unity CLIのキャッシュ（バイナリや設定）
+      # 1. Unity CLIのキャッシュ
       - name: Cache Unity CLI
         uses: actions/cache@v4
         with:
@@ -31,8 +31,7 @@ jobs:
       - name: Verify Unity CLI Version
         run: unity --version
 
-      # 2. Unity Editor本体のキャッシュ（※インストールパスに合わせて調整が必要な場合あり）
-      # Unity CLIがデフォルトでEditorを置く場所（通常 ~/.local/share/unity や Unity Hubの管理パス）をキャッシュ
+      # 2. Unity Editor本体のキャッシュ
       - name: Cache Unity Editor
         uses: actions/cache@v4
         with:
@@ -43,27 +42,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-unity-editor-
 
-
-
-
-        - name: Run Build via Unity CLI
-        run: |
-          unity editors --format json
-          unity open . --no-window -executeMethod WebGLBuildCommand.Build
-
-          
-
-
-
-
-
-
-
+      # 3. Unity Editor & WebGLモジュールのインストール（キャッシュがあればスキップされる）
       - name: Install Unity Editor & WebGL Module
         run: |
           unity install lts -m webgl --accept-eula --yes
 
-      # 3. Unityプロジェクトのビルドキャッシュ（Libraryフォルダ）
+      # 4. UnityプロジェクトのLibraryキャッシュ
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
@@ -72,10 +56,35 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-unity-library-
 
-      - name: Run Build via Unity Pipeline / CLI
+      # 5. ビルド実行（Unity CLIが管理するインストール済みエディタのパスを直接引いてバッチモード起動）
+      - name: Run Build via Unity Editor Batchmode
         run: |
-          unity command WebGLBuildCommand
+          # Unity CLIでインストールされたEditorの実行ファイルを探して直接バッチモードで回す
+          UNITY_PATH=$(find ~/.local/share/unity -name "Unity" -type f -executable | head -n 1)
+          
+          if [ -z "$UNITY_PATH" ]; then
+            echo "❌ Unity Editor not found!"
+            exit 1
+          fi
 
+          echo "🚀 Found Unity Editor at: $UNITY_PATH"
+
+          # バッチモードでプロジェクトを開き、静的メソッドを実行して終了
+          "$UNITY_PATH" -batchmode \
+                        -projectPath "$(pwd)" \
+                        -executeMethod WebGLBuildCommand.Build \
+                        -quit \
+                        -nographics \
+                        -logFile build.log
+
+      - name: Show Build Log if Failed
+        if: failure()
+        run: |
+          if [ -f build.log ]; then
+            cat build.log
+          fi
+
+      # 6. GitHub Pagesへデプロイ
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
