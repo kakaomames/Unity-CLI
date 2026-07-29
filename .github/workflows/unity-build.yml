@@ -46,51 +46,17 @@ jobs:
 
 
 
-      - name: Run Build via Unity CLI and Batchmode
+        - name: Run Build via Unity CLI
         run: |
-          # Unity CLIからインストール済みEditorの一覧をJSONで取得して、エディタの実行ファイルパスを抽出する
-          # （もしUnity CLIに直接ビルドコマンドがある場合はそれを使うのが一番スマートですが、確実なバッチ起動を行うであります）
+          # Unity CLIの機能を使って、インストールされたエディタ経由でバッチモードを実行する
+          # もしくは、Unity CLIが提供するコマンドや通常の起動引数を利用するであります
+          unity editors --format json
           
-          # Unity CLIのコマンドでエディタパスを探す、または標準的なパスを網羅的に探す
-          echo "Searching for Unity Editor..."
+          # CLI経由で現在のエディタバージョンを使ってバッチモードでビルドメソッドを叩く
+          # Unity CLI自体のコマンド、またはunityエディタの標準コマンドを使用
+          unity open . --no-window -executeMethod WebGLBuildCommand.Build
+
           
-          # Unity CLIが管理するパスや一般的なインストール先を探す
-          UNITY_PATH=""
-          
-          # 候補地を順番にチェック
-          for path in "$HOME/.local/share/unity/editors"/*/Editor/Unity "/Applications/Unity Hub/..." "/opt/unity/Editor/Unity" ~/.unity/editors/*/Editor/Unity; do
-            if [ -f "$path" ]; then
-              UNITY_PATH="$path"
-              break
-            fi
-          done
-
-          # もし見つからない場合、findでホームディレクトリ付近を広く探す
-          if [ -z "$UNITY_PATH" ]; then
-            UNITY_PATH=$(find ~ -name "Unity" -type f -executable | grep Editor | head -n 1)
-          fi
-
-          if [ -z "$UNITY_PATH" ] || [ ! -f "$UNITY_PATH" ]; then
-            echo "❌ Unity Editor executable not found!"
-            exit 1
-          fi
-
-          echo "🚀 Using Unity Editor at: $UNITY_PATH"
-
-          # バッチモードでビルド実行
-          "$UNITY_PATH" -batchmode \
-                        -projectPath "$(pwd)" \
-                        -executeMethod WebGLBuildCommand.Build \
-                        -quit \
-                        -nographics \
-                        -logFile build.log
-
-      - name: Show Build Log if Failed
-        if: failure()
-        run: |
-          if [ -f build.log ]; then
-            cat build.log
-          fi
 
 
 
