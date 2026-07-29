@@ -13,27 +13,55 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # 1. Unity CLIのキャッシュ（バイナリや設定）
+      - name: Cache Unity CLI
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/bin/unity
+          key: ${{ runner.os }}-unity-cli
+
       - name: Install Unity CLI
         run: |
-          curl -fsSL https://public-cdn.cloud.unity3d.com/hub/prod/cli/install.sh \
-          | UNITY_CLI_CHANNEL=beta bash
-          # パスを通す（環境に合わせて調整）
+          if [ ! -f "$HOME/.local/bin/unity" ]; then
+            curl -fsSL https://public-cdn.cloud.unity3d.com/hub/prod/cli/install.sh \
+            | UNITY_CLI_CHANNEL=beta bash
+          fi
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Verify Unity CLI Version
         run: unity --version
 
+      # 2. Unity Editor本体のキャッシュ（※インストールパスに合わせて調整が必要な場合あり）
+      # Unity CLIがデフォルトでEditorを置く場所（通常 ~/.local/share/unity や Unity Hubの管理パス）をキャッシュ
+      - name: Cache Unity Editor
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/unity
+            ~/.unity
+          key: ${{ runner.os }}-unity-editor-${{ hashFiles('ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-unity-editor-
+
       - name: Install Unity Editor & WebGL Module
         run: |
           unity install lts -m webgl --accept-eula --yes
 
+      # 3. Unityプロジェクトのビルドキャッシュ（Libraryフォルダ）
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: ${{ runner.os }}-unity-library-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            ${{ runner.os }}-unity-library-
+
       - name: Run Build via Unity Pipeline / CLI
         run: |
-          # プロジェクトを開いて、C#で定義したビルドコマンドを叩く！
           unity command WebGLBuildCommand
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./Builds/WebGL # UnityのWebGLビルド出力先を指定
+          publish_dir: ./Builds/WebGL
