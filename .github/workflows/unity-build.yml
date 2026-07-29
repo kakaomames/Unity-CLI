@@ -43,6 +43,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-unity-editor-
 
+
+
+
+      - name: Run Build via Unity CLI
+        run: |
+          # プロジェクトを開いてビルドコマンドを実行（あるいはCLI経由でプロジェクトを指定してビルド）
+          # ※まずはプロジェクトを開く、またはPipelineパッケージの初期設定を確認するであります！
+          unity open . -- -batchmode -executeMethod WebGLBuildCommand.Build -quit
+
+
+
+
       - name: Install Unity Editor & WebGL Module
         run: |
           unity install lts -m webgl --accept-eula --yes
