@@ -57,13 +57,32 @@ jobs:
             ${{ runner.os }}-unity-library-
 
       # 5. ビルド実行（Unity CLIが管理するインストール済みエディタのパスを直接引いてバッチモード起動）
+  
       - name: Run Build via Unity Editor Batchmode
         run: |
-          # Unity CLIでインストールされたEditorの実行ファイルを探して直接バッチモードで回す
-          UNITY_PATH=$(find ~/.local/share/unity -name "Unity" -type f -executable | head -n 1)
+          # Unity CLIのバージョン情報を確認しつつ、実際のインストール場所を正しく探す
+          echo "Checking Unity CLI and Editors..."
+          unity editors --format json || true
+
+          # Unity Editorのパスを探す（検索範囲をホームディレクトリ全体に拡大、またはUnity CLIのデフォルトパスに対応）
+          UNITY_PATH=""
           
+          # よくあるインストール先候補を総当たりで探す
+          for p in ~/.local/share/unity/editors/*/Editor/Unity ~/.unity/editors/*/Editor/Unity ~/unity/editors/*/Editor/Unity /opt/unity/Editor/Unity; do
+            if [ -f "$p" ]; then
+              UNITY_PATH="$p"
+              break
+            fi
+          done
+
+          # それでも見つからない場合のみfindを使うが、今度はホーム全体から安全に探す
           if [ -z "$UNITY_PATH" ]; then
-            echo "❌ Unity Editor not found!"
+            echo "Searching wider for Unity executable..."
+            UNITY_PATH=$(find ~ -name "Unity" -type f -executable 2>/dev/null | grep -i "Editor/Unity" | head -n 1)
+          fi
+
+          if [ -z "$UNITY_PATH" ] || [ ! -f "$UNITY_PATH" ]; then
+            echo "❌ Error: Unity Editor executable could not be located anywhere!"
             exit 1
           fi
 
@@ -76,6 +95,7 @@ jobs:
                         -quit \
                         -nographics \
                         -logFile build.log
+
 
       - name: Show Build Log if Failed
         if: failure()
